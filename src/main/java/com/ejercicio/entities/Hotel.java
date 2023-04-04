@@ -3,6 +3,8 @@ package com.ejercicio.entities;
 import java.io.Serializable;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -36,6 +38,8 @@ public class Hotel implements Serializable {
     //Relaciones
     //Un hotel puede tener varios clientes
     @OneToMany(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST, mappedBy = "hotel")
+    @JsonIgnore //aqui usamos ignore pq json back reference no funciona con listas/colecciones
     private List<Cliente> clientes;
+
     
 }

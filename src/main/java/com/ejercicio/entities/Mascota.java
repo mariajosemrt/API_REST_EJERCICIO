@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -32,6 +33,8 @@ public class Mascota implements Serializable {
 
     private String nombre;
     private String raza;
+
+    //@Enumerated(EnumType.STRING) //para que la columna del enum se vea con los nombres, no con el ordinal asociado
     private Genero genero;
 
     public enum Genero {
@@ -45,6 +48,9 @@ public class Mascota implements Serializable {
     //Relaciones
     //Un cliente puede tener varias mascotas
     @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    @JsonIgnore
+    // @JsonManagedReference
+    //A la entidad que es llamada
     private Cliente cliente; 
     
 }

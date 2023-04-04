@@ -14,7 +14,8 @@ import com.ejercicio.entities.Cliente;
 public interface ClienteDao extends JpaRepository<Cliente, Long> {
 
     /**Para que nos de una lista de clientes y venga ordenada por un criterio */
-    @Query(value = "select c from Cliente c left join fetch c.hotel")
+   // @Query(value = "select c from Cliente c inner join fetch c.hotel inner join fetch c.mascotas")
+   @Query(value = "select c from Cliente c inner join fetch c.mascotas left join fetch c.hotel")
     public List<Cliente> findAll(Sort sort);
 
 
@@ -23,7 +24,7 @@ public interface ClienteDao extends JpaRepository<Cliente, Long> {
     countQuery = "select count(c) from Cliente c left join c.hotel")
     public Page<Cliente> findAll(Pageable pageable);
 
-    /**Recupera un hotel por su id con sus clientes. */
+    /**Recupera un cliente por su id con sus mascotas. */
     @Query(value = "select c from Cliente c left join fetch c.hotel where c.id = :id")
     public Cliente findById(long id);
     

@@ -1,17 +1,21 @@
 package com.ejercicio.controllers;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.BindingResult;
@@ -24,20 +28,35 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.ejercicio.entities.Cliente;
+import com.ejercicio.model.FileUploadResponse;
 import com.ejercicio.services.ClienteService;
+import com.ejercicio.utilities.FileDownloadUtil;
+import com.ejercicio.utilities.FileUploadUtil;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/clientes")
+@RequiredArgsConstructor
 
 public class ClienteController {
 
     @Autowired
     private ClienteService clienteService;
+
+    @Autowired
+    private FileUploadUtil fileUploadUtil;
+
+    //@Autowired
+    //private MascotaService mascotaService;
+
+    private final FileDownloadUtil fileDownloadUtil;
 
     /**Método para devolver listado de clientes paginados o no y siempre ordenados
      * por un criterio, lo que implica el uso de @RequestParam */
@@ -121,21 +140,22 @@ public class ClienteController {
     }
 
     /**Crea/Persiste un nuevo cliente en la base de datos */
-    @PostMapping
+
+    @PostMapping( consumes = "multipart/form-data" )
     @Transactional
     public ResponseEntity<Map<String, Object>> insert
-    (@Valid @RequestBody Cliente cliente, BindingResult result) {
+    (@Valid @RequestPart(name = "cliente") Cliente cliente, 
+    BindingResult result, @RequestPart(name = "file") MultipartFile file) throws IOException {
 
         Map<String, Object> responseAsMap = new HashMap<>();
         ResponseEntity<Map<String, Object>> responseEntity = null;
 
-        /** Primero: Comprobar si hay errores en el producto recibido */
+        /** Primero: Comprobar si hay errores en el cliente recibido */
         if(result.hasErrors()) {
 
             //Aquí guardamos los errores
             List<String> errorMessages = new ArrayList<>();
-            //un for mejorado para recorrerlos creamos la coleccion, despues de los puntos estan
-            //donde estan (result)y luego .getAllErrors, ahi ya nos pide que a la izq haya ObjectError
+          
             for(ObjectError error : result.getAllErrors()) {
 
                 errorMessages.add(error.getDefaultMessage());
@@ -147,9 +167,35 @@ public class ClienteController {
             //Return para no salir del if y no guardar. Solo devolvemos mensaje error
             
         return responseEntity;
+
+        }
+        //Si no hay errores, se persiste el cliente
+        //PREVIAMENTE comprobamos si hemos recibido una imagen
+        if(!file.isEmpty()) {
+            String fileCode = fileUploadUtil.saveFile(file.getOriginalFilename(), file); //recibe nombre del archivo y su contenido
+            //Hemos lanzado una excepcion para arriba
+            cliente.setImagenCliente(fileCode + "-" + file.getOriginalFilename());
+
+            //Devolver informacion respecto al file recibido
+            FileUploadResponse fileUploadResponse = FileUploadResponse
+            .builder()
+            .fileName(fileCode + "-" + file.getOriginalFilename())
+            .downloadURI("/clientes/downloadFile/" + fileCode + "-" + file.getOriginalFilename())
+            .size(file.getSize())
+            .build();
+
+            responseAsMap.put("info de la imagen", fileUploadResponse);
+
+            //Hay que crear el metodo que responda a la URL para recuperar la imagen del servidor
         }
 
         Cliente clienteDB = clienteService.save(cliente);
+
+        //Para relacionar la mascota con el cliente y que se cree en la base de datos
+        /** List<Mascota> mascotas = mascotaService.findAll();
+
+        mascotas.stream().filter(m -> m.getCliente() == null)
+        .forEach(m -> m.setCliente(clienteDB)); */
 
         try {
             if(clienteDB != null) {
@@ -186,7 +232,7 @@ public class ClienteController {
                                     BindingResult result,
                                     @PathVariable(name = "id") Integer id) {
 
-        Map<String, Object> resopnseAsMap = new HashMap<>();
+        Map<String, Object> responseAsMap = new HashMap<>();
         ResponseEntity<Map<String, Object>> responseEntity = null;
 
         /** Primero: Comprobar si hay errores en el cliente recibido */
@@ -201,9 +247,9 @@ public class ClienteController {
                 errorMessages.add(error.getDefaultMessage());
             }
 
-            resopnseAsMap.put("errores", errorMessages);
+            responseAsMap.put("errores", errorMessages);
 
-            responseEntity = new ResponseEntity<Map<String,Object>>(resopnseAsMap, HttpStatus.BAD_REQUEST);
+            responseEntity = new ResponseEntity<Map<String,Object>>(responseAsMap, HttpStatus.BAD_REQUEST);
             //Return para no salir del if y no guardar. Solo devolvemos mensaje error
             return responseEntity; 
 
@@ -216,9 +262,9 @@ public class ClienteController {
         try {
             if(clienteDB != null) {
                 String mensaje = "El cliente se ha actualizado correctamente";
-                resopnseAsMap.put("mensaje", mensaje);
-                resopnseAsMap.put("cliente", clienteDB);
-                responseEntity = new ResponseEntity<Map<String, Object>>(resopnseAsMap, HttpStatus.OK);
+                responseAsMap.put("mensaje", mensaje);
+                responseAsMap.put("cliente", clienteDB);
+                responseEntity = new ResponseEntity<Map<String, Object>>(responseAsMap, HttpStatus.OK);
     
             } else {
                 //No se ha actualizado el cliente
@@ -229,8 +275,8 @@ public class ClienteController {
                                  + ", y la causa más probable puede ser" 
                                     + e.getMostSpecificCause();
 
-            resopnseAsMap.put("errorGrave", errorGrave);
-            responseEntity = new ResponseEntity<Map<String, Object>>(resopnseAsMap,
+            responseAsMap.put("errorGrave", errorGrave);
+            responseEntity = new ResponseEntity<Map<String, Object>>(responseAsMap,
                                                                  HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
@@ -264,6 +310,32 @@ public class ClienteController {
         }
 
         return responseEntity;
+    }
+
+    /** Implementa filedownload para meter las imágenes */
+    @GetMapping("/downloadFile/{fileCode}") //esto es un ENDPoint
+    public ResponseEntity<?> downloadFile(@PathVariable(name = "fileCode") String fileCode) {
+
+        Resource resource = null;
+
+        try {
+            resource = fileDownloadUtil.getFileAsResource(fileCode);
+        } catch (IOException e) {
+            return ResponseEntity.internalServerError().build();
+        }
+
+        if (resource == null) {
+            return new ResponseEntity<>("File not found ", HttpStatus.NOT_FOUND);
+        }
+
+        String contentType = "application/octet-stream";
+        String headerValue = "attachment; filename=\"" + resource.getFilename() + "\"";
+
+        return ResponseEntity.ok()
+        .contentType(MediaType.parseMediaType(contentType)) //MediaType de spring
+        .header(HttpHeaders.CONTENT_DISPOSITION, headerValue)
+        .body(resource);
+
     }
 
 }

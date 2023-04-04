@@ -42,7 +42,7 @@ public class ClienteServiceImpl implements ClienteService{
     @Override
     @Transactional
     public void delete(Cliente cliente) {
-        clienteDao.delete(cliente);;
+        clienteDao.delete(cliente);
     }
     
 }
