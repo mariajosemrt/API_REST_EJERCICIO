@@ -33,8 +33,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.ejercicio.entities.Cliente;
+import com.ejercicio.entities.Mascota;
 import com.ejercicio.model.FileUploadResponse;
 import com.ejercicio.services.ClienteService;
+import com.ejercicio.services.MascotaService;
 import com.ejercicio.utilities.FileDownloadUtil;
 import com.ejercicio.utilities.FileUploadUtil;
 
@@ -53,8 +55,8 @@ public class ClienteController {
     @Autowired
     private FileUploadUtil fileUploadUtil;
 
-    //@Autowired
-    //private MascotaService mascotaService;
+    @Autowired
+    private MascotaService mascotaService;
 
     private final FileDownloadUtil fileDownloadUtil;
 
@@ -192,10 +194,10 @@ public class ClienteController {
         Cliente clienteDB = clienteService.save(cliente);
 
         //Para relacionar la mascota con el cliente y que se cree en la base de datos
-        /** List<Mascota> mascotas = mascotaService.findAll();
+        List<Mascota> mascotas = mascotaService.findAll();
 
         mascotas.stream().filter(m -> m.getCliente() == null)
-        .forEach(m -> m.setCliente(clienteDB)); */
+        .forEach(m -> m.setCliente(clienteDB)); 
 
         try {
             if(clienteDB != null) {
